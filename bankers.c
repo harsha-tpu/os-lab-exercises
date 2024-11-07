@@ -1,98 +1,95 @@
 #include <stdio.h>
 
-int mark[20];  // Marks if a process is completed or not
-int num_processes, num_resources;  // Number of processes and resources
+#define MAX_PROCESSES 5
+#define MAX_RESOURCES 3
+
+void calculateNeed(int need[MAX_PROCESSES][MAX_RESOURCES], 
+                   int max[MAX_PROCESSES][MAX_RESOURCES], 
+                   int allocation[MAX_PROCESSES][MAX_RESOURCES], 
+                   int numProcesses, int numResources) {
+    // Calculate the need matrix
+    for (int i = 0; i < numProcesses; i++) {
+        for (int j = 0; j < numResources; j++) {
+            need[i][j] = max[i][j] - allocation[i][j];
+        }
+    }
+}
+
+int isSafe(int available[MAX_RESOURCES], 
+           int max[MAX_PROCESSES][MAX_RESOURCES], 
+           int allocation[MAX_PROCESSES][MAX_RESOURCES], 
+           int numProcesses, int numResources) {
+    int need[MAX_PROCESSES][MAX_RESOURCES];
+    calculateNeed(need, max, allocation, numProcesses, numResources);
+
+    int finish[MAX_PROCESSES] = {0};  // To track finished processes
+    int safeSequence[MAX_PROCESSES];
+    int work[MAX_RESOURCES];  // Work vector to simulate availability
+
+    for (int i = 0; i < numResources; i++) {
+        work[i] = available[i];
+    }
+
+    int count = 0;
+    while (count < numProcesses) {
+        int found = 0;
+        for (int i = 0; i < numProcesses; i++) {
+            if (finish[i] == 0) {
+                int j;
+                for (j = 0; j < numResources; j++) {
+                    if (need[i][j] > work[j]) {
+                        break;
+                    }
+                }
+                if (j == numResources) {
+                    // Process can finish
+                    for (int k = 0; k < numResources; k++) {
+                        work[k] += allocation[i][k];
+                    }
+                    safeSequence[count++] = i;
+                    finish[i] = 1;
+                    found = 1;
+                }
+            }
+        }
+        if (found == 0) {
+            printf("System is not in a safe state!\n");
+            return 0;
+        }
+    }
+
+    // If the system is in a safe state, print the safe sequence
+    printf("System is in a safe state.\nSafe sequence is: ");
+    for (int i = 0; i < numProcesses; i++) {
+        printf("P%d ", safeSequence[i]);
+    }
+    printf("\n");
+    return 1;
+}
 
 int main() {
-    int allocation[10][10], request[10][10], available[10], total_resources[10], work[10];
+    int numProcesses = 5;
+    int numResources = 3;
 
-    // Input number of processes and resources
-    printf("\nEnter the number of processes: ");
-    scanf("%d", &num_processes);
-    printf("\nEnter the number of resources: ");
-    scanf("%d", &num_resources);
+    int available[MAX_RESOURCES] = {3, 3, 2};  // Available resources
 
-    // Input the total resources for each resource type
-    for (int i = 0; i < num_resources; i++) {
-        printf("Total amount of resource R%d: ", i + 1);
-        scanf("%d", &total_resources[i]);
-    }
+    int max[MAX_PROCESSES][MAX_RESOURCES] = {
+        {7, 5, 3},  // Maximum resource needs for P0
+        {3, 2, 2},  // Maximum resource needs for P1
+        {9, 0, 2},  // Maximum resource needs for P2
+        {2, 2, 2},  // Maximum resource needs for P3
+        {4, 3, 3}   // Maximum resource needs for P4
+    };
 
-    // Input the request matrix
-    printf("\nEnter the request matrix:\n");
-    for (int i = 0; i < num_processes; i++) {
-        for (int j = 0; j < num_resources; j++) {
-            scanf("%d", &request[i][j]);
-        }
-    }
+    int allocation[MAX_PROCESSES][MAX_RESOURCES] = {
+        {0, 1, 0},  // Resources allocated to P0
+        {2, 0, 0},  // Resources allocated to P1
+        {3, 0, 2},  // Resources allocated to P2
+        {2, 1, 1},  // Resources allocated to P3
+        {0, 0, 2}   // Resources allocated to P4
+    };
 
-    // Input the allocation matrix
-    printf("\nEnter the allocation matrix:\n");
-    for (int i = 0; i < num_processes; i++) {
-        for (int j = 0; j < num_resources; j++) {
-            scanf("%d", &allocation[i][j]);
-        }
-    }
-
-    // Calculate available resources
-    for (int j = 0; j < num_resources; j++) {
-        available[j] = total_resources[j];
-        for (int i = 0; i < num_processes; i++) {
-            available[j] -= allocation[i][j];
-        }
-    }
-
-    // Mark processes with zero allocation
-    for (int i = 0; i < num_processes; i++) {
-        int zero_allocation = 1;
-        for (int j = 0; j < num_resources; j++) {
-            if (allocation[i][j] != 0) {
-                zero_allocation = 0;
-                break;
-            }
-        }
-        mark[i] = zero_allocation;  // Mark process if it has zero allocation
-    }
-
-    // Initialize work array with available resources
-    for (int j = 0; j < num_resources; j++) {
-        work[j] = available[j];
-    }
-
-    // Process unmarked processes whose requests can be satisfied
-    for (int i = 0; i < num_processes; i++) {
-        if (!mark[i]) {  // Only check unmarked processes
-            int can_be_processed = 1;
-            for (int j = 0; j < num_resources; j++) {
-                if (request[i][j] > work[j]) {
-                    can_be_processed = 0;
-                    break;
-                }
-            }
-            if (can_be_processed) {
-                mark[i] = 1;  // Mark process as completed
-                for (int j = 0; j < num_resources; j++) {
-                    work[j] += allocation[i][j];  // Release its allocated resources
-                }
-            }
-        }
-    }
-
-    // Check for unmarked processes indicating deadlock
-    int deadlock = 0;
-    for (int i = 0; i < num_processes; i++) {
-        if (!mark[i]) {
-            deadlock = 1;
-            break;
-        }
-    }
-
-    // Output result
-    if (deadlock) {
-        printf("\nDeadlock detected.\n");
-    } else {
-        printf("\nNo deadlock detected. The system is in a safe state.\n");
-    }
+    isSafe(available, max, allocation, numProcesses, numResources);
 
     return 0;
 }
